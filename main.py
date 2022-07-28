@@ -8,17 +8,19 @@ log.setLevel(DEBUG)
 
 async def handle_echo(reader: StreamReader, writer: StreamWriter):
     data = await reader.read(100)
-    # message = data.decode(encoding="ascii")
+    length = data[1]
+    print("len: ", length)
+    message = data[2 : length + 2].decode(encoding="utf-8")
     addr = writer.get_extra_info("peername")
 
-    print(f"Received {data!r} from {addr!r}")
+    print(f"Received {message} from {addr!r}")
     writer.close()
 
 
 async def main():
     server = await asyncio.start_server(handle_echo, port=4567)
 
-    addr = server.sockets[0].getsockname()
+    addr = [s.getsockname() for s in server.sockets]
     print(f"Serving on {addr}")
 
     async with server:
