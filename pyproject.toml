@@ -1,0 +1,15 @@
+[tool.poetry]
+authors = ["Konstantin-Dudersky <Konstantin.Dudersky@gmail.com>"]
+description = ""
+name = "plc_logging"
+version = "0.0.1"
+
+[tool.poetry.dependencies]
+python = "^3.10"
+
+[tool.poetry.dev-dependencies]
+black = "*"
+
+[build-system]
+build-backend = "poetry.core.masonry.api"
+requires = ["poetry-core>=1.0.0"]
