@@ -150,6 +150,7 @@ class Handle:
         message: str = data[2 : length + 2].decode(  # noqa: E203
             encoding="utf-8",
         )
+        writer.close()
         message_parts: List[str] = message.split("\t")
         len_at_least: int = 4
         if len(message_parts) < len_at_least:
@@ -162,7 +163,7 @@ class Handle:
                 len_at_least,
                 message,
             )
-            return
+            return await asyncio.sleep(0)
         msg_level: str = message_parts[0]
         msg_ts: str = message_parts[1]
         msg_block_title: str = message_parts[2]
@@ -172,19 +173,19 @@ class Handle:
         else:
             msg_values: List[str] = []
         match msg_level:
-            case "+0":
+            case "+10":
                 log_level = log.debug
-            case "+1":
+            case "+20":
                 log_level = log.info
-            case "+2":
+            case "+30":
                 log_level = log.warning
-            case "+3":
+            case "+40":
                 log_level = log.error
-            case "+4":
+            case "+50":
                 log_level = log.critical
             case _:
                 log.error("incorrect logging level, actual: %s", msg_level)
-                return
+                return await asyncio.sleep(0)
         try:
             log_level(
                 "%s | %s\n%s",
@@ -198,14 +199,14 @@ class Handle:
                 message,
                 exc,
             )
-            return
+            return await asyncio.sleep(0)
         except IndexError as exc:
             log.error(
                 "incorrect message format\nmessage: %s\nerror: %s",
                 message,
                 exc,
             )
-            return
+            return await asyncio.sleep(0)
 
 
 async def main() -> None:
@@ -214,7 +215,7 @@ async def main() -> None:
     if len(argv) >= 2:
         port: int = int(sys.argv[1])
     else:
-        port: int = 4567
+        port: int = 8000
 
     server = await asyncio.start_server(Handle().handle, port=port)
 
