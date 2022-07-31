@@ -2,7 +2,28 @@
 
 Логгирование сообщений от ПЛК.
 
+[Ссылка](https://github.com/Konstantin-Dudersky/plc_logging) на репозиторий.
+
 [TOC]
+
+## Описание
+
+
+
+
+
+Формат сообщения:
+
+```
+LEVEL | TIMESTAMP | BLOCK_TITLE
+MESSAGE
+--------------------------------------------------------------------------------
+```
+
+- LEVEL - уровень сообщения
+- TIMESTAMP - метка времени ПЛК
+- BLOCK_TITLE - блок, в котором было сгенерировано данное сообщение
+- MESSAGE - текст сообщение
 
 Предусмотрены уровни логгирования:
 
@@ -26,6 +47,80 @@
 | INFO               | DEBUG           | DEBUG     | игнор     |
 
 Чтобы заблокировать все сообщения в ПЛК - установить глобальный уровень DISABLE.
+
+## Скрипт Python
+
+Работу проверял в python3.10. Должен работать начиная с версии 3.7, но это не точно.
+
+Кроме вывода в терминал, создаются текстовые файлы в папке log.
+
+### Linux
+
+Как правило, python уже предустановлен. Команды для установки актуальной версии python на debian-based дистрибутивах - [ссылка](https://gist.github.com/Konstantin-Dudersky/2e5dfad8ff49c749e4421f87574b6713).
+
+Установка [poetry](https://python-poetry.org/):
+
+```sh
+curl -sSL https://install.python-poetry.org | python3 -
+```
+
+Закрываем консоль и открываем опять. Переходим в папку, в которой будут храниться файлы. Скачиваем репозиторий github:
+
+```sh
+curl -L -O https://github.com/Konstantin-Dudersky/plc_logging/archive/refs/heads/main.zip
+unzip -uo main.zip
+mv plc_logging-main/ plc_logging
+rm main.zip
+```
+
+Устанавливаем
+
+```sh
+cd plc_logging
+poetry install
+```
+
+Запускать командой
+
+```sh
+poetry run python plc_logging.py PORT
+```
+
+PORT - номер порта, опциональный параметр, если не указать, то назначается 8000
+
+### Windows
+
+Устанавливаем актуальный [python](https://www.python.org/).
+
+Установка [poetry](https://python-poetry.org/) через PowerShell:
+
+```powershell
+(Invoke-WebRequest -Uri https://raw.githubusercontent.com/python-poetry/poetry/master/get-poetry.py -UseBasicParsing).Content | python -
+```
+
+Закрывает PowerShell и открываем опять. Переходим в папку, в которой будут храниться файлы. Скачиваем репозиторий из github:
+
+```powershell
+Invoke-WebRequest https://github.com/Konstantin-Dudersky/plc_logging/archive/refs/heads/main.zip -OutFile .\repo.zip
+Expand-Archive .\repo.zip .\
+Rename-Item .\plc_logging-main .\plc_logging
+Remove-Item .\repo.zip
+```
+
+Устанавливаем
+
+```powershell
+cd plc_logging
+poetry install
+```
+
+Запускать командой:
+
+```powershell
+poetry run python plc_logging.py PORT
+```
+
+PORT - номер порта, опциональный параметр, если не указать, то назначается 8000
 
 ## Настройка в контроллере
 
@@ -94,3 +189,12 @@ LEVEL - уровень логгирования сообщения, NUM - кол
 
 - msg - текст сообщения, тип STRING - т.е. поддерживаются только символы ASCII. В фигурных скобках {} можно указать место вставки доп. значений value. Нумерация начинается с 0.
 - value - доп. значения в формате STRING.
+
+В журнале будет сгенерировано подобное сообщение:
+
+```
+DEBUG | 2022-07-30 16:42:56,937619669 | test_logger_block
+test debug message, SP: +1.000000E+1, PV: +1.100000E+1, add: +1.200000E+1
+--------------------------------------------------------------------------------
+```
+

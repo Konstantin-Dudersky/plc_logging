@@ -5,6 +5,7 @@ name = "plc_logging"
 version = "0.0.1"
 
 [tool.poetry.dependencies]
+colorama = "*"
 python = "^3.10"
 
 [tool.poetry.dev-dependencies]

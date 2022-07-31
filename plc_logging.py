@@ -10,6 +10,9 @@ from enum import IntEnum
 from logging import Handler, handlers
 from typing import List
 
+import colorama
+
+colorama.init()
 
 FORMAT: str = "%(levelname)s | %(message)s"
 
@@ -134,10 +137,19 @@ class Handle:
         reader: StreamReader,
         writer: StreamWriter,
     ) -> None:
+        while True:
+            await self._handle(reader, writer)
+
+    async def _handle(
+        self: "Handle",
+        reader: StreamReader,
+        writer: StreamWriter,
+    ) -> None:
         """Handle messages from client.
 
         :param reader: asyncio reader
         :param writer: asyncio writer
+        :return: None
         """
         if self.__init:
             self.__init = False
@@ -145,12 +157,17 @@ class Handle:
                 "conected device: %s",
                 writer.get_extra_info("peername"),
             )
-        data: bytes = await reader.read(254)
-        length: int = data[1]
-        message: str = data[2 : length + 2].decode(  # noqa: E203
-            encoding="utf-8",
-        )
-        writer.close()
+        # log.debug("wait for data...")
+        data: bytes = await reader.readuntil(separator=b"\r")
+        # log.debug(data)
+        try:
+            length: int = data[1]
+            message: str = data[2 : length + 2].decode(  # noqa: E203
+                encoding="utf-8",
+            )
+        except IndexError:
+            log.error("wrong length of input data,\ndata: %s", data)
+            return await asyncio.sleep(0)
         message_parts: List[str] = message.split("\t")
         len_at_least: int = 4
         if len(message_parts) < len_at_least:
@@ -217,7 +234,11 @@ async def main() -> None:
     else:
         port: int = 8000
 
-    server = await asyncio.start_server(Handle().handle, port=port)
+    server = await asyncio.start_server(
+        Handle().handle,
+        port=port,
+        limit=2000,
+    )
 
     log.info("Serving on %s", [s.getsockname() for s in server.sockets])
 
