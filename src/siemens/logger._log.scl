@@ -93,6 +93,7 @@ BEGIN
 	#str := CONCAT_STRING(IN1 := #str, IN2 := "logger".config_in_block.block_title);
 	#str := CONCAT_STRING(IN1 := #str, IN2 := '$t');
 	#str := CONCAT_STRING(IN1 := #str, IN2 := #msg);
+	#str := CONCAT_STRING(IN1 := #str, IN2 := '$r');
 	
 	FOR #i := 0 TO "logger".buffer_size DO
 	    IF "logger".buffer[#i] = '' THEN

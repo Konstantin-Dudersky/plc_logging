@@ -17,7 +17,18 @@ VERSION : 0.1
    END_VAR
 
    VAR 
-      tsend {InstructionName := 'TSEND_C'; LibVersion := '3.2'; ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : TSEND_C;
+      prev { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Struct
+         state { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Int;
+      END_STRUCT;
+      diag { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Struct
+         tcon_done_counter { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : UDInt;
+         tcon_error_counter { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : UDInt;
+         tcon_error_status { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Word;
+         timeout_counter { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : UDInt;
+         tsend_done_counter { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : UDInt;
+         tsend_error_counter { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : UDInt;
+         tsend_error_status { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Word;
+      END_STRUCT;
       connect {InstructionName := 'TCON_IP_v4'; LibVersion := '1.0'; ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : TCON_IP_v4;
       data { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : String;
       buffer { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Array[0..9] of String;
@@ -28,17 +39,24 @@ VERSION : 0.1
          level { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : USInt;
          block_title { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : String;
       END_STRUCT;
+      tcon {InstructionName := 'TCON'; LibVersion := '4.0'; ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'; S7_SetPoint := 'False'} : TCON;
+      tsend {InstructionName := 'TSEND'; LibVersion := '4.0'; ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : TSEND;
+      tdiscon {InstructionName := 'TDISCON'; LibVersion := '2.1'; ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : TDISCON;
+      connect_id { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : CONN_OUC := 16#1;
    END_VAR
 
    VAR_TEMP 
       i : Int;
+      com_rst : Bool;
    END_VAR
 
    VAR CONSTANT 
-      ST_STOP : Int;
-      ST_WAIT : Int := 1;
-      ST_SEND : Int := 2;
       "BUFFER_SIZE_" : Int := 9;
+      ST_STOP : Int;
+      ST_CONNECT : Int := 1;
+      ST_WAIT : Int := 2;
+      ST_SEND : Int := 3;
+      ST_DISCON : Int := 4;
    END_VAR
 
 
@@ -49,7 +67,6 @@ BEGIN
 	
 	IF #init THEN
 	    // first execution
-	    #init := false;
 	    #connect.RemoteAddress.ADDR[1] := #ip_1;
 	    #connect.RemoteAddress.ADDR[2] := #ip_2;
 	    #connect.RemoteAddress.ADDR[3] := #ip_3;
@@ -58,26 +75,46 @@ BEGIN
 	    #connect.LocalPort := #port_number;
 	    #connect.ActiveEstablished := true;
 	    #connect.InterfaceId := #interface_id;
-	    #connect.ID := #id;
+	    //#connect.ID := #id;
 	    #state := #ST_STOP;
 	    #connect.ConnectionType := 11;
 	    
 	    #buffer_size := #"BUFFER_SIZE_";
 	END_IF;
 	
-	
 	CASE #state OF
 	    #ST_STOP:
 	        IF #global_logger_level < "LoggerLevels".DISABLE THEN
-	            #state := #ST_WAIT;
+	            #state := #ST_CONNECT;
 	            FOR #i := 0 TO #"BUFFER_SIZE_" DO
 	                #buffer[#i] := '';
 	            END_FOR;
 	        END_IF;
 	        
-	    #ST_WAIT:
-	        IF #global_logger_level = "LoggerLevels".DISABLE THEN
+	    #ST_CONNECT:
+	        IF #global_logger_level = "LoggerLevels".DISABLE OR #init THEN
 	            #state := #ST_STOP;
+	        ELSIF #tcon.DONE THEN
+	            // done
+	            #diag.tcon_done_counter += 1;
+	            #state := #ST_WAIT;
+	        ELSIF #tcon.ERROR THEN
+	            // error
+	            #diag.tcon_error_counter += 1;
+	            #diag.tcon_error_status := #tcon.STATUS;
+	            #state := #ST_STOP;
+	            IF #tcon.STATUS = 16#80A3 THEN
+	                #connect_id += 1;
+	            END_IF;
+	        ELSIF #timeout.Q THEN
+	            // timeout
+	            #diag.timeout_counter += 1;
+	            #state := #ST_STOP;
+	        END_IF;
+	        
+	    #ST_WAIT:
+	        IF #global_logger_level = "LoggerLevels".DISABLE OR #init THEN
+	            #state := #ST_DISCON;
 	        END_IF;
 	        
 	        IF #buffer[0] <> '' THEN
@@ -90,24 +127,47 @@ BEGIN
 	        END_IF;
 	        
 	    #ST_SEND:
-	        IF #global_logger_level = "LoggerLevels".DISABLE THEN
-	            #state := #ST_STOP;
-	        ELSIF #tsend.DONE OR #tsend.ERROR OR #timeout.Q THEN
-	            #data := '';
+	        IF #global_logger_level = "LoggerLevels".DISABLE OR #init THEN
+	            #state := #ST_DISCON;
+	        ELSIF #tsend.DONE THEN
+	            // done
+	            #diag.tsend_done_counter += 1;
 	            #state := #ST_WAIT;
+	        ELSIF #tsend.ERROR THEN
+	            // error
+	            #diag.tsend_error_counter += 1;
+	            #diag.tsend_error_status := #tsend.STATUS;
+	            #state := #ST_DISCON;
+	        ELSIF #timeout.Q THEN
+	            // timeout
+	            #diag.timeout_counter += 1;
+	            #state := #ST_DISCON;
+	        END_IF;
+	        
+	    #ST_DISCON:
+	        IF #tdiscon.DONE OR #tdiscon.ERROR OR #timeout.Q THEN
+	            #state := #ST_STOP;
 	        END_IF;
 	        
 	END_CASE;
 	
-	#timeout(IN := #state = #ST_SEND,
-	         PT := T#30s);
+	#timeout(IN := #state = #prev.state,
+	         PT := T#5s);
 	
+	#connect.ID := #connect_id;
+	#tcon(REQ := #state = #ST_CONNECT,
+	      ID := #connect_id,
+	      CONNECT := #connect);
 	
 	#tsend(REQ := #state = #ST_SEND,
-	       CONT := #state = #ST_SEND,
-	       CONNECT := #connect,
-	       DATA := #data
-	);
+	       ID :=#connect_id,
+	       LEN := INT_TO_UDINT(LEN(#data)) + 2, // why 2 ???
+	       DATA := #data);
 	
+	#tdiscon(REQ := #state = #ST_DISCON,
+	         ID := #connect_id);
+	
+	#init := false;
+	#prev.state := #state;
 END_FUNCTION_BLOCK
 
