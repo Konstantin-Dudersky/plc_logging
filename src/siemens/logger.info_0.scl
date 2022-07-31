@@ -1,0 +1,20 @@
+﻿FUNCTION "logger.info_0" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      msg : String;   // message for logging
+   END_VAR
+
+
+BEGIN
+	IF MAX_USINT(IN1 := "logger".config_in_block.level, IN2 := "logger".global_logger_level) >
+	    "LoggerLevels".INFO THEN
+	    RETURN;
+	END_IF;
+	
+	"logger._log"(level := "LoggerLevels".INFO,
+	              msg := #msg
+	);
+	
+END_FUNCTION
+

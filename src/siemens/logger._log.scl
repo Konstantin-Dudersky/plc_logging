@@ -1,0 +1,105 @@
+﻿FUNCTION "logger._log" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      level : USInt;
+      msg : String;
+   END_VAR
+
+   VAR_TEMP 
+      temp_dtl {InstructionName := 'DTL'; LibVersion := '1.0'} : DTL;
+      temp_int : Int;
+      ts : String;
+      pos : UInt;
+      i : Int;
+      str : String;
+   END_VAR
+
+
+BEGIN
+	(*Add message to buffer.
+	Format: LEVEL, TIMESTAMP, BLOCK_TITLE, MESSAGE
+	Separator - \t.
+	*)
+	
+	REGION timestamp
+	    // timestamp
+	    #temp_int := RD_LOC_T(#temp_dtl);
+	    
+	    #ts := 'YYYY-MM-DD HH:MM:SS,NNNNNNNNN';
+	    #pos := 1;
+	    VAL_STRG(IN := #temp_dtl.YEAR,
+	             SIZE := 4,
+	             PREC := 0,
+	             FORMAT := 0,
+	             P := #pos,
+	             OUT => #ts);
+	    #pos := 6;
+	    VAL_STRG(IN := #temp_dtl.MONTH,
+	             SIZE := 2,
+	             PREC := 0,
+	             FORMAT := 0,
+	             P := #pos,
+	             OUT => #ts);
+	    #pos := 9;
+	    VAL_STRG(IN := #temp_dtl.DAY,
+	             SIZE := 2,
+	             PREC := 0,
+	             FORMAT := 0,
+	             P := #pos,
+	             OUT => #ts);
+	    #pos := 12;
+	    VAL_STRG(IN := #temp_dtl.HOUR,
+	             SIZE := 2,
+	             PREC := 0,
+	             FORMAT := 0,
+	             P := #pos,
+	             OUT => #ts);
+	    #pos := 15;
+	    VAL_STRG(IN := #temp_dtl.MINUTE,
+	             SIZE := 2,
+	             PREC := 0,
+	             FORMAT := 0,
+	             P := #pos,
+	             OUT => #ts);
+	    #pos := 18;
+	    VAL_STRG(IN := #temp_dtl.SECOND,
+	             SIZE := 2,
+	             PREC := 0,
+	             FORMAT := 0,
+	             P := #pos,
+	             OUT => #ts);
+	    #pos := 21;
+	    VAL_STRG(IN := #temp_dtl.NANOSECOND,
+	             SIZE := 0,
+	             PREC := 0,
+	             FORMAT := 0,
+	             P := #pos,
+	             OUT => #ts);
+	    FOR #i := 1 TO LEN(#ts) DO
+	        // fill with zeros
+	        IF #ts[#i] = ' ' THEN
+	            #ts[#i] := '0';
+	        END_IF;
+	    END_FOR;
+	    #ts[11] := ' '; // separator between day and hours
+	END_REGION
+	
+	#str := '';
+	#str := CONCAT_STRING(IN1 := #str, IN2 := USINT_TO_STRING(#level));
+	#str := CONCAT_STRING(IN1 := #str, IN2 := '$t');
+	#str := CONCAT_STRING(IN1 := #str, IN2 := #ts);
+	#str := CONCAT_STRING(IN1 := #str, IN2 := '$t');
+	#str := CONCAT_STRING(IN1 := #str, IN2 := "logger".config_in_block.block_title);
+	#str := CONCAT_STRING(IN1 := #str, IN2 := '$t');
+	#str := CONCAT_STRING(IN1 := #str, IN2 := #msg);
+	
+	FOR #i := 0 TO "logger".buffer_size DO
+	    IF "logger".buffer[#i] = '' THEN
+	        "logger".buffer[#i] := #str;
+	        RETURN;
+	    END_IF;
+	END_FOR;
+	
+END_FUNCTION
+

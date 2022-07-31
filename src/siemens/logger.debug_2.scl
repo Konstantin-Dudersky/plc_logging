@@ -1,0 +1,33 @@
+﻿FUNCTION "logger.debug_2" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      msg : String;   // message for logging
+      value_0 : String;   // additional value 0
+      value_1 : String;   // additional value 1
+   END_VAR
+
+   VAR_TEMP 
+      str : String;
+   END_VAR
+
+
+BEGIN
+	IF MAX_USINT(IN1 := "logger".config_in_block.level, IN2 := "logger".global_logger_level) >
+	    "LoggerLevels".DEBUG THEN
+	    RETURN;
+	END_IF;
+	
+	#str := '';
+	#str := CONCAT_STRING(IN1 := #str, IN2 := #msg);
+	#str := CONCAT_STRING(IN1 := #str, IN2 := '$t');
+	#str := CONCAT_STRING(IN1 := #str, IN2 := #value_0);
+	#str := CONCAT_STRING(IN1 := #str, IN2 := '$t');
+	#str := CONCAT_STRING(IN1 := #str, IN2 := #value_1);
+	
+	"logger._log"(level := "LoggerLevels".DEBUG,
+	              msg := #str
+	);
+	
+END_FUNCTION
+

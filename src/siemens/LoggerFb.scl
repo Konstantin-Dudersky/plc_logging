@@ -1,0 +1,113 @@
+﻿FUNCTION_BLOCK "LoggerFb"
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      global_logger_level { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : USInt := 0;   // Filter all logging messages
+      ip_1 { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : USInt := 10;
+      ip_2 { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : USInt := 101;
+      ip_3 { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : USInt := 50;
+      ip_4 { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : USInt := 17;
+      port_number { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : UInt := 4567;
+      interface_id { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : UInt := 64;
+      id { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : CONN_OUC := 1;
+   END_VAR
+
+   VAR_OUTPUT 
+      buffer_size { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Int;
+   END_VAR
+
+   VAR 
+      tsend {InstructionName := 'TSEND_C'; LibVersion := '3.2'; ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : TSEND_C;
+      connect {InstructionName := 'TCON_IP_v4'; LibVersion := '1.0'; ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : TCON_IP_v4;
+      data { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : String;
+      buffer { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Array[0..9] of String;
+      state { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Int;
+      timeout {InstructionName := 'TON_TIME'; LibVersion := '1.0'; ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'; S7_SetPoint := 'False'} : TON_TIME;
+      init { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'; S7_SetPoint := 'True'} : Bool := TRUE;   // TRUE = initialize function block
+      config_in_block { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Struct
+         level { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : USInt;
+         block_title { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : String;
+      END_STRUCT;
+   END_VAR
+
+   VAR_TEMP 
+      i : Int;
+   END_VAR
+
+   VAR CONSTANT 
+      ST_STOP : Int;
+      ST_WAIT : Int := 1;
+      ST_SEND : Int := 2;
+      "BUFFER_SIZE_" : Int := 9;
+   END_VAR
+
+
+BEGIN
+	(*Блок логгера.*)
+	
+	// -----------------------------------------------------------------------------
+	
+	IF #init THEN
+	    // first execution
+	    #init := false;
+	    #connect.RemoteAddress.ADDR[1] := #ip_1;
+	    #connect.RemoteAddress.ADDR[2] := #ip_2;
+	    #connect.RemoteAddress.ADDR[3] := #ip_3;
+	    #connect.RemoteAddress.ADDR[4] := #ip_4;
+	    #connect.RemotePort := #port_number;
+	    #connect.LocalPort := #port_number;
+	    #connect.ActiveEstablished := true;
+	    #connect.InterfaceId := #interface_id;
+	    #connect.ID := #id;
+	    #state := #ST_STOP;
+	    #connect.ConnectionType := 11;
+	    
+	    #buffer_size := #"BUFFER_SIZE_";
+	END_IF;
+	
+	
+	CASE #state OF
+	    #ST_STOP:
+	        IF #global_logger_level < "LoggerLevels".DISABLE THEN
+	            #state := #ST_WAIT;
+	            FOR #i := 0 TO #"BUFFER_SIZE_" DO
+	                #buffer[#i] := '';
+	            END_FOR;
+	        END_IF;
+	        
+	    #ST_WAIT:
+	        IF #global_logger_level = "LoggerLevels".DISABLE THEN
+	            #state := #ST_STOP;
+	        END_IF;
+	        
+	        IF #buffer[0] <> '' THEN
+	            #data := #buffer[0];
+	            FOR #i := 0 TO #"BUFFER_SIZE_" - 1 DO
+	                #buffer[#i] := #buffer[#i + 1];
+	            END_FOR;
+	            #buffer[#"BUFFER_SIZE_"] := '';
+	            #state := #ST_SEND;
+	        END_IF;
+	        
+	    #ST_SEND:
+	        IF #global_logger_level = "LoggerLevels".DISABLE THEN
+	            #state := #ST_STOP;
+	        ELSIF #tsend.DONE OR #tsend.ERROR OR #timeout.Q THEN
+	            #data := '';
+	            #state := #ST_WAIT;
+	        END_IF;
+	        
+	END_CASE;
+	
+	#timeout(IN := #state = #ST_SEND,
+	         PT := T#30s);
+	
+	
+	#tsend(REQ := #state = #ST_SEND,
+	       CONT := #state = #ST_SEND,
+	       CONNECT := #connect,
+	       DATA := #data
+	);
+	
+END_FUNCTION_BLOCK
+

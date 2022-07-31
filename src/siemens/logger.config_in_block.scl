@@ -1,0 +1,15 @@
+﻿FUNCTION "logger.config_in_block" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      level : USInt;
+      block_title : String;
+   END_VAR
+
+
+BEGIN
+	"logger".config_in_block.block_title := #block_title;
+	"logger".config_in_block.level := #level;
+	
+END_FUNCTION
+
