@@ -9,7 +9,6 @@ VERSION : 0.1
       ip_4 { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : USInt := 2;
       port_number { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : UInt := 4567;
       interface_id { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : UInt := 64;
-      id { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : CONN_OUC := 1;
    END_VAR
 
    VAR_OUTPUT 
@@ -42,7 +41,7 @@ VERSION : 0.1
       tcon {InstructionName := 'TCON'; LibVersion := '4.0'; ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'; S7_SetPoint := 'False'} : TCON;
       tsend {InstructionName := 'TSEND'; LibVersion := '4.0'; ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : TSEND;
       tdiscon {InstructionName := 'TDISCON'; LibVersion := '2.1'; ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : TDISCON;
-      connect_id { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : CONN_OUC := 16#1;
+      connect_id { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : CONN_OUC := 16#0001;
    END_VAR
 
    VAR_TEMP 
@@ -160,7 +159,7 @@ BEGIN
 	      CONNECT := #connect);
 	
 	#tsend(REQ := #state = #ST_SEND,
-	       ID :=#connect_id,
+	       ID := #connect_id,
 	       LEN := INT_TO_UDINT(LEN(#data)) + 2, // why 2 ???
 	       DATA := #data);
 	
